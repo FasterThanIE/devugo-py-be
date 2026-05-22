@@ -1,9 +1,11 @@
-from db import Db
-import pandas as pd
+from subscription_dao import SubscriptionDAO
+from subscription_analysis import SubscriptionAnalysis
 
-query = "SELECT * FROM subscriptions"
 
-db = Db()
 
-subscriptions = db._execute_query(query)
-print(pd.DataFrame(subscriptions))
+db = SubscriptionDAO()
+analysis = SubscriptionAnalysis(db.extract_subscription())
+print(analysis.most_used_plans())
+print(analysis.most_popular_days())
+print(analysis.most_popular_months())
+print(analysis.most_popular_time())
