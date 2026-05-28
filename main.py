@@ -10,4 +10,4 @@ print(analysis.most_popular_days())
 print(analysis.most_popular_months())
 print(analysis.most_popular_time())
 
-print(analysis.average_sub_length())
+print(analysis.users_sub_length())

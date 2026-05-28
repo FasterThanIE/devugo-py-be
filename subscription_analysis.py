@@ -63,7 +63,7 @@ class SubscriptionAnalysis:
 
 
 
-    def average_sub_length(self):
+    def users_sub_length(self):
         users_ids = set(self.sub_df["user_id"])
 
         result = []
