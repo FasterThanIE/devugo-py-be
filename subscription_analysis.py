@@ -1,4 +1,7 @@
+from tokenize import group
+
 import pandas as pd
+import json
 
 class SubscriptionAnalysis:
     def __init__(self, subscriptions):
@@ -6,83 +9,56 @@ class SubscriptionAnalysis:
 
 
     def most_used_plans(self):
-        return self.sub_df["plan_id"].value_counts().to_dict()
+        return self.sub_df["plan_id"].value_counts().to_json()
 
     def most_popular_days(self):
         days = self.sub_df["starts_at"].dt.day_name()
-        return days.value_counts().to_dict()
+        return days.value_counts().to_json()
 
     def most_popular_months(self):
         months = self.sub_df["starts_at"].dt.month_name()
-        return months.value_counts().to_dict()
+        return months.value_counts().to_json()
 
     def most_popular_time(self):
         timestamp = self.sub_df["starts_at"].dt.hour
-        return timestamp.value_counts().to_dict()
-
-
-    def extract_date_series(self, uid):
-        user_rows = self.sub_df[self.sub_df["user_id"] == uid]
-        sorted_dates = user_rows["starts_at"].sort_values().reset_index(drop=True)
-        return sorted_dates
-
-    def calculate_month_diffs(self, dates_series):
-        month_diffs = (dates_series.dt.year.diff() * 12) + dates_series.dt.month.diff()
-        return month_diffs
-
-    def break_check(self, dates_series, differences):
-        stoper = dates_series[(differences != 1) & (differences.notna())]
-        if not stoper.empty:
-            return {"idx":stoper.index[0], "stop_date": stoper.iloc[0]}
-        return None
+        return timestamp.value_counts().to_json()
 
     def max_consistent_sub_len(self, dates_series):
-        subs_len = 0
-        dates = dates_series
-        is_stoper = True
+        if len(dates_series) <= 1:
+            return len(dates_series)
 
-        while is_stoper:
-            month_diffs = self.calculate_month_diffs(dates)
-            stoper = self.break_check(dates, month_diffs)
+        dates = dates_series.sort_values().reset_index(drop=True)
 
-            if stoper:
-                dates = dates_series[stoper["idx"]:]
+        month_diffs = (dates.dt.year.diff() * 12) + dates.dt.month.diff()
 
-                if len(month_diffs[:stoper["idx"]]) < len(dates):
-                    month_diffs = self.calculate_month_diffs(dates)
-                    stoper = self.break_check(dates, month_diffs)
+        blocks = (month_diffs != 1).cumsum()
 
-                else:
-                    subs_len = len(month_diffs[:-1])
-                    is_stoper = False
-            else:
-                subs_len = len(dates)
-                is_stoper = False
-
-        return subs_len
-
+        max_sub_len = blocks.value_counts().max()
+        return int(max_sub_len)
 
 
     def users_sub_length(self):
-        users_ids = set(self.sub_df["user_id"])
+        if self.sub_df.empty:
+            return json.dumps({"subs_length_data": []})
 
         result = []
-        for uid in users_ids:
-            dates = self.extract_date_series(uid)
-            if len(dates) > 1:
-                result.append({"User":uid, "length":self.max_consistent_sub_len(dates)})
-            else:
-                result.append({"User":uid, "length":1})
 
-        return result
+        for uid, group in self.sub_df.groupby("user_id"):
+            max_len = self.max_consistent_sub_len(group["starts_at"])
+            result.append({"user": uid, "length": max_len})
 
+        return json.dumps({"subs_length_data": result})
 
+    def average_sub_length(self):
+        if self.sub_df.empty:
+            return json.dumps({"average_sub_len": 0.0})
 
+        lengths = [
+            self.max_consistent_sub_len(group["starts_at"])
+            for _, group in self.sub_df.groupby("user_id")
+        ]
 
-
-
-
-
-
+        avg_length = pd.Series(lengths).mean() if lengths else 0.0
+        return json.dumps({"average_sub_len": float(avg_length)})
 
 
